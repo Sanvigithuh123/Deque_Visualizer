@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deque Visualizer</title>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+:root{
+ --bg:#FFF4EA;--surface:#FFF9F2;--surface2:#FAEBD7;
+ --border:rgba(126,172,181,0.15);--border2:rgba(126,172,181,0.3);
+ --text:#3a2c2c;--text2:#6b4f4f;--text3:#a08585;
+ --mono:'Fira Code',monospace;--display:'Outfit',sans-serif;
+ --front:#C96868;--rear:#7EACB5;--mid:#c08060;--mid2:#b05858;
+ --solo:#d4956b;--green:#7EACB5;--red:#C96868;--orange:#d4956b;--purple:#a07080;
+ --accent1:#C96868;--accent2:#FADFA1;--accent3:#FFF4EA;--accent4:#7EACB5;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{height:100%;}
+body{background:var(--bg);color:var(--text);font-family:var(--display);display:flex;flex-direction:column;min-height:100vh;overflow-x:hidden;overflow-y:auto;}
+
+.page-header{
+ background:linear-gradient(135deg,#8B3A3A 0%,#C96868 40%,#d4956b 70%,#b07a60 100%);
+ padding:22px 32px 16px;text-align:center;position:relative;
+ box-shadow:0 4px 24px rgba(201,104,104,0.35);
+}
+.page-header::before{content:'';position:absolute;inset:0;
+ background-image:linear-gradient(rgba(255,244,234,0.04) 1px,transparent 1px),
+ linear-gradient(90deg,rgba(255,244,234,0.04) 1px,transparent 1px);
+ background-size:32px 32px;pointer-events:none;}
+.page-title{font-family:var(--display);font-size:40px;font-weight:900;letter-spacing:-1.5px;
+ line-height:1;margin-bottom:6px;position:relative;
+ background:linear-gradient(120deg,#fff8f0 0%,#ffffff 30%,#FADFA1 60%,#ffffff 100%);
+ -webkit-text-fill-color:transparent;background-clip:text;}
+.title-sub{font-size:12px;color:rgba(255,223,180,0.85);font-family:var(--mono);
+ letter-spacing:.08em;text-transform:uppercase;position:relative;}
+
+.main-body{
+ display:grid;
+ grid-template-columns:220px 1fr 210px;
+ min-height:0;
+ border-bottom:1px solid var(--border2);
+}
+
+.ctrl-panel{
+ background:var(--surface);
+ border-right:1.5px solid var(--border2);
+ display:flex;flex-direction:column;
+ padding:16px 14px;gap:14px;
+ min-height:0;
+}
+.ctrl-section-title{
+ font-size:10px;font-weight:700;color:var(--text3);
+ font-family:var(--mono);text-transform:uppercase;letter-spacing:.07em;
+ margin-bottom:4px;
+}
+.op-card{
+ background:#fff9f2;border:1.5px solid var(--border2);border-radius:10px;overflow:hidden;
+ box-shadow:0 1px 4px rgba(201,104,104,0.07);
+}
+.op-card-head{padding:7px 12px;font-size:11px;font-weight:700;font-family:var(--mono);
+ letter-spacing:.05em;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:6px;}
+.och-front{background:rgba(201,104,104,0.08);color:#9a4040;}
+.och-rear{background:rgba(126,172,181,0.10);color:#3d7e8a;}
+.dot-ind{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.di-f{background:var(--accent1);}.di-r{background:var(--accent4);}
+.op-card-body{padding:9px 12px;}
+.input-row{display:flex;gap:6px;align-items:center;margin-bottom:8px;}
+.input-row label{font-size:10px;color:var(--text3);font-family:var(--mono);min-width:26px;}
+.input-row input{flex:1;padding:5px 9px;border-radius:6px;border:1.5px solid var(--border2);
+ background:#fff9f2;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;transition:border-color .2s;}
+.input-row input:focus{border-color:var(--accent1);}
+.btn-trio{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;}
+.op-btn{padding:6px 3px;border-radius:6px;border:1.5px solid rgba(201,104,104,0.35);
+ cursor:pointer;font-family:var(--mono);font-size:11px;font-weight:600;background:transparent;
+ transition:background .12s,transform .08s;text-align:center;white-space:nowrap;color:#9a4040;}
+.op-btn:active{transform:scale(.96);}
+.op-btn:hover{background:rgba(201,104,104,0.08);border-color:rgba(201,104,104,0.6);}
+
+.util-row{display:flex;gap:7px;flex-direction:column;}
+.util-btn{padding:8px 12px;border-radius:7px;border:1.5px solid var(--border2);
+ cursor:pointer;font-family:var(--mono);font-size:12px;font-weight:600;
+ background:transparent;color:var(--text2);transition:background .12s;text-align:center;}
+.util-btn:hover{background:var(--surface2);}
+.util-btn.primary{background:var(--accent1);border-color:var(--accent1);color:#fff;}
+.util-btn.primary:hover{background:#b05050;}
+.util-btn:disabled{opacity:0.45;cursor:not-allowed;}
+
+.peek-result{
+ display:none;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;
+ background:rgba(250,223,161,0.25);border:1.5px solid rgba(250,223,161,0.7);
+ border-radius:8px;padding:8px 12px;font-family:var(--mono);font-size:12px;
+ text-align:center;
+}
+.peek-result.show{display:flex;}
+.pr-fn{color:var(--accent1);font-weight:700;font-size:12px;width:100%;text-align:center;}
+.pr-arr{color:var(--text3);}
+.pr-val{font-size:26px;font-weight:800;font-family:var(--display);color:var(--text);}
+.pr-close{background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;line-height:1;}
+.pr-close:hover{color:var(--text2);}
+
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.stat-box{background:#fff9f2;border:1px solid var(--border2);border-radius:8px;
+ padding:6px 8px;text-align:center;}
+.stat-val{font-size:13px;font-weight:700;font-family:var(--mono);}
+.stat-lbl{font-size:9px;font-family:var(--mono);margin-top:1px;font-weight:700;color:var(--text3);}
+.sv-b{color:var(--accent1);}.sv-g{color:var(--accent4);}.sv-x{color:var(--text2);}
+
+.canvas-col{
+ display:flex;flex-direction:column;
+ background:#fffaf4;
+ min-width:0;overflow:hidden;
+}
+.canvas-area{
+ flex:1;overflow-x:auto;overflow-y:auto;min-height:300px;
+ display:flex;align-items:flex-start;justify-content:center;
+}
+#d3-svg{display:block;}
+.empty-hint{position:absolute;inset:0;pointer-events:none;display:flex;
+ flex-direction:column;align-items:center;justify-content:center;gap:10px;
+ color:var(--text3);font-size:13px;font-family:var(--mono);}
+.empty-icon{font-size:28px;opacity:.25;letter-spacing:4px;}
+
+.cx-sidebar{
+ background:#fff9f2;border-left:1.5px solid var(--border2);
+ display:flex;flex-direction:column;overflow-y:auto;
+}
+.cx-title{padding:11px 14px;font-size:13px;font-weight:700;letter-spacing:.06em;
+ text-transform:uppercase;border-bottom:1.5px solid var(--border2);text-align:center;
+ background:var(--surface2);font-family:var(--mono);color:var(--accent1);}
+.cx-block{padding:11px 12px;border-bottom:1px solid var(--border2);}
+.cx-block:last-child{border-bottom:none;}
+.cx-fn{font-family:var(--mono);font-size:13px;font-weight:600;margin-bottom:7px;color:var(--accent1);}
+.cx-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+.cx-key{font-size:11px;color:var(--text3);font-family:var(--mono);}
+.cx-chip{font-family:var(--mono);font-size:12px;font-weight:700;padding:2px 8px;border-radius:3px;border:1px solid;}
+.chip-o1{background:rgba(126,172,181,.12);color:#2e6e7a;border-color:rgba(126,172,181,.4);}
+.chip-on{background:rgba(201,104,104,.10);color:#9a3030;border-color:rgba(201,104,104,.4);}
+
+.edit-section{border-top:2px solid var(--border2);background:#fff9f2;flex-shrink:0;}
+.edit-header{padding:10px 24px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border2);}
+.edit-title{font-size:14px;font-weight:700;color:var(--text);}
+.apply-btn{padding:6px 16px;border-radius:6px;background:var(--accent1);border:none;color:#fff;
+ font-family:var(--mono);font-size:13px;font-weight:600;cursor:pointer;transition:background .12s;}
+.apply-btn:hover{background:#a04040;}
+.apply-btn.success{background:#2e7a6a;}
+.fn-tabs{display:flex;overflow-x:auto;background:var(--surface);border-bottom:1.5px solid var(--border2);padding:0 24px;}
+.fn-tab{padding:7px 13px;font-family:var(--mono);font-size:12px;font-weight:600;cursor:pointer;
+ white-space:nowrap;border:none;background:none;color:var(--text3);border-bottom:2px solid transparent;
+ transition:color .12s;flex-shrink:0;}
+.fn-tab:hover{color:var(--text2);}
+.fn-tab.active{color:var(--accent1);border-bottom-color:var(--accent1);background:#fff9f2;}
+.editors-grid{display:grid;grid-template-columns:repeat(3,1fr);}
+.editor-col{border-right:1px solid var(--border2);display:none;}
+.editor-col:last-child{border-right:none;}
+.editor-col.active{display:block;}
+.editor-col-label{padding:5px 12px;font-family:var(--mono);font-size:11px;font-weight:700;
+ background:var(--surface2);border-bottom:1px solid var(--border2);
+ text-transform:uppercase;letter-spacing:.05em;color:var(--accent1);}
+.code-editor{width:100%;height:180px;font-family:var(--mono);font-size:13px;line-height:1.75;
+ color:var(--text2);background:#fff9f2;border:none;outline:none;resize:none;padding:11px 13px;tab-size:4;}
+.error-bar{padding:6px 24px;background:rgba(201,104,104,0.08);border-top:1px solid rgba(201,104,104,0.3);
+ font-family:var(--mono);font-size:11px;color:#9a3030;display:none;}
+.error-bar.show{display:block;}
+.success-bar{padding:6px 24px;background:rgba(126,172,181,0.10);border-top:1px solid rgba(126,172,181,0.35);
+ font-family:var(--mono);font-size:11px;color:#2e6e7a;display:none;}
+.success-bar.show{display:block;}
+
+@media(max-width:900px){
+ .main-body{grid-template-columns:1fr 1fr;grid-template-rows:auto auto;}
+ .ctrl-panel{grid-column:1;grid-row:1;}
+ .canvas-col{grid-column:1/-1;grid-row:2;border-left:none;}
+ .cx-sidebar{grid-column:2;grid-row:1;border-left:1.5px solid var(--border2);}
+ .editors-grid{grid-template-columns:1fr 1fr;}
+ .editor-col:nth-child(3){grid-column:1/-1;border-right:none;}
+}
+@media(max-width:600px){
+ .main-body{grid-template-columns:1fr;grid-template-rows:auto auto auto;}
+ .ctrl-panel{grid-column:1;grid-row:1;border-right:none;border-bottom:1.5px solid var(--border2);}
+ .canvas-col{grid-column:1;grid-row:2;}
+ .cx-sidebar{grid-column:1;grid-row:3;border-left:none;border-top:1.5px solid var(--border2);}
+ .editors-grid{grid-template-columns:1fr !important;}
+ .editor-col{border-right:none !important;border-bottom:1px solid var(--border2);}
+ .editor-col:last-child{border-bottom:none;}
+ .code-editor{height:140px;}
+ .page-title{font-size:28px;}
+}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+ <div class="page-title">DEQUE</div>
+ <div class="title-sub">Double Ended Queue &nbsp;&middot;&nbsp; Linked List Implementation in C</div>
+</div>
+
+<div class="main-body">
+
+ <div class="ctrl-panel">
+
+ <div>
+ <div class="ctrl-section-title">Stats</div>
+ <div class="stats-grid">
+ <div class="stat-box"><div class="stat-val sv-b" id="s-size">0</div><div class="stat-lbl">size</div></div>
+ <div class="stat-box"><div class="stat-val sv-x" id="s-empty">true</div><div class="stat-lbl">isEmpty</div></div>
+ <div class="stat-box"><div class="stat-val sv-b" id="s-front" style="font-size:10px">NULL</div><div class="stat-lbl">front*</div></div>
+ <div class="stat-box"><div class="stat-val sv-g" id="s-rear" style="font-size:10px">NULL</div><div class="stat-lbl">rear*</div></div>
+ <div class="stat-box" style="grid-column:1/-1"><div class="stat-val sv-x" id="s-ops">0</div><div class="stat-lbl">operations</div></div>
+ </div>
+ </div>
+
+ <div>
+ <div class="ctrl-section-title">Front End</div>
+ <div class="op-card">
+ <div class="op-card-head och-front"><div class="dot-ind di-f"></div>Insert / Remove Front</div>
+ <div class="op-card-body">
+ <div class="input-row"><label>val</label><input type="number" id="val-front" value="10" min="-9999" max="9999"></div>
+ <div class="btn-trio">
+ <button class="op-btn" onclick="doFrontEnqueue()">enqueue</button>
+ <button class="op-btn" onclick="doFrontDequeue()">dequeue</button>
+ <button class="op-btn" onclick="doPeek('front')">peek</button>
+ </div>
+ </div>
+ </div>
+ </div>
+
+ <div>
+ <div class="ctrl-section-title">Rear End</div>
+ <div class="op-card">
+ <div class="op-card-head och-rear"><div class="dot-ind di-r"></div>Insert / Remove Rear</div>
+ <div class="op-card-body">
+ <div class="input-row"><label>val</label><input type="number" id="val-rear" value="40" min="-9999" max="9999"></div>
+ <div class="btn-trio">
+ <button class="op-btn" onclick="doRearEnqueue()">enqueue</button>
+ <button class="op-btn" onclick="doRearDequeue()">dequeue</button>
+ <button class="op-btn" onclick="doPeek('rear')">peek</button>
+ </div>
+ </div>
+ </div>
+ </div>
+
+ <div class="util-row">
+ <button class="util-btn primary" id="demo-btn" onclick="doDemo()">&#9654; Replay</button>
+ <button class="util-btn" onclick="doReset()">&#8634; Reset</button>
+ </div>
+
+ <div class="peek-result" id="peek-result">
+ <span class="pr-fn" id="pr-fn">peekfront()</span>
+ <span class="pr-arr">&rarr;</span>
+ <span class="pr-val" id="pr-val">&mdash;</span>
+ <button class="pr-close" onclick="hidePeek()">&times;</button>
+ </div>
+
+ </div>
+
+ <div class="canvas-col">
+ <div class="canvas-area" id="canvas-area">
+ <svg id="d3-svg"></svg>
+ <div class="empty-hint" id="empty-hint">
+ <div class="empty-icon">&larr; [ ] &rarr;</div>
+ <div>deque is empty &mdash; use controls on the left</div>
+ </div>
+ </div>
+ </div>
+
+ <div class="cx-sidebar">
+ <div class="cx-title">Complexity</div>
+ <div class="cx-block">
+ <div class="cx-fn">frontenqueue(x)</div>
+ <div class="cx-row"><span class="cx-key">time</span><span class="cx-chip chip-o1" id="chip-fe-t">O(1)</span></div>
+ <div class="cx-row"><span class="cx-key">space</span><span class="cx-chip chip-o1">O(1)</span></div>
+ </div>
+ <div class="cx-block">
+ <div class="cx-fn">rearenqueue(x)</div>
+ <div class="cx-row"><span class="cx-key">time</span><span class="cx-chip chip-o1" id="chip-re-t">O(1)</span></div>
+ <div class="cx-row"><span class="cx-key">space</span><span class="cx-chip chip-o1">O(1)</span></div>
+ </div>
+ <div class="cx-block">
+ <div class="cx-fn">frontdequeue()</div>
+ <div class="cx-row"><span class="cx-key">time</span><span class="cx-chip chip-o1" id="chip-fd-t">O(1)</span></div>
+ <div class="cx-row"><span class="cx-key">space</span><span class="cx-chip chip-o1">O(1)</span></div>
+ </div>
+ <div class="cx-block">
+ <div class="cx-fn">reardequeue()</div>
+ <div class="cx-row"><span class="cx-key">time</span><span class="cx-chip chip-on" id="chip-rd-t">O(n)</span></div>
+ <div class="cx-row"><span class="cx-key">space</span><span class="cx-chip chip-o1">O(1)</span></div>
+ </div>
+ <div class="cx-block">
+ <div class="cx-fn">peek (front/rear)</div>
+ <div class="cx-row"><span class="cx-key">time</span><span class="cx-chip chip-o1">O(1)</span></div>
+ <div class="cx-row"><span class="cx-key">space</span><span class="cx-chip chip-o1">O(1)</span></div>
+ </div>
+ <div class="cx-block">
+ <div class="cx-fn">display()</div>
+ <div class="cx-row"><span class="cx-key">time</span><span class="cx-chip chip-on">O(n)</span></div>
+ <div class="cx-row"><span class="cx-key">space</span><span class="cx-chip chip-o1">O(1)</span></div>
+ </div>
+ <div class="cx-block" style="border-bottom:none">
+ <div class="cx-fn">struct node &times; n</div>
+ <div class="cx-row"><span class="cx-key">total</span><span class="cx-chip chip-on">O(n)</span></div>
+ </div>
+ </div>
+
+</div>
+
+<div class="edit-section">
+ <div class="edit-header">
+ <div class="edit-title">Edit C Functions</div>
+ <button class="apply-btn" id="apply-btn" onclick="applyCode()">&#9654; Apply</button>
+ </div>
+ <div class="fn-tabs">
+ <button class="fn-tab active" onclick="switchGrp('main',this)">enqueue / dequeue</button>
+ <button class="fn-tab" onclick="switchGrp('util',this)">peek / display</button>
+ </div>
+ <div class="editors-grid" id="grp-main">
+ <div class="editor-col active">
+ <div class="editor-col-label">frontenqueue(x)</div>
+ <textarea class="code-editor" id="ed-fe" spellcheck="false">// Time: O(1) Space: O(1)
+void frontenqueue(int x) {
+ struct node *newnode =
+ malloc(sizeof(struct node));
+ newnode->data = x;
+ newnode->next = NULL;
+
+ if (front == NULL) {
+ front = rear = newnode;
+ return;
+ }
+ newnode->next = front;
+ front = newnode;
+}</textarea>
+ </div>
+ <div class="editor-col active">
+ <div class="editor-col-label">rearenqueue(x)</div>
+ <textarea class="code-editor" id="ed-re" spellcheck="false">// Time: O(1) Space: O(1)
+void rearenqueue(int x) {
+ struct node *newnode =
+ malloc(sizeof(struct node));
+ newnode->data = x;
+ newnode->next = NULL;
+
+ if (rear == NULL) {
+ front = rear = newnode;
+ return;
+ }
+ rear->next = newnode;
+ rear = newnode;
+}</textarea>
+ </div>
+ <div class="editor-col active">
+ <div class="editor-col-label">frontdequeue &amp; reardequeue</div>
+ <textarea class="code-editor" id="ed-fd" spellcheck="false">// frontdequeue — Time: O(1)
+void frontdequeue() {
+ if (front == NULL) {
+ printf("Queue Underflow\n"); return;
+ }
+ struct node *temp = front;
+ printf("Deleted: %d\n", temp->data);
+ front = front->next;
+ if (front == NULL) rear = NULL;
+ free(temp);
+}
+// reardequeue — Time: O(n)
+void reardequeue() {
+ if (front == NULL) {
+ printf("Queue Underflow\n"); return;
+ }
+ if (front == rear) {
+ printf("Deleted: %d\n", front->data);
+ free(front); front = rear = NULL; return;
+ }
+ struct node *temp = front;
+ while (temp->next != rear)
+ temp = temp->next;
+ printf("Deleted: %d\n", rear->data);
+ free(rear); rear = temp; rear->next = NULL;
+}</textarea>
+ </div>
+ </div>
+ <div class="editors-grid" id="grp-util" style="display:none">
+ <div class="editor-col active">
+ <div class="editor-col-label">peekfront()</div>
+ <textarea class="code-editor" id="ed-pkf" spellcheck="false">// Time: O(1) Space: O(1)
+void peekfront() {
+ if (front == NULL)
+ printf("Empty\n");
+ else
+ printf("Front: %d\n",
+ front->data);
+}</textarea>
+ </div>
+ <div class="editor-col active">
+ <div class="editor-col-label">peekrear()</div>
+ <textarea class="code-editor" id="ed-pkr" spellcheck="false">// Time: O(1) Space: O(1)
+void peekrear() {
+ if (rear == NULL)
+ printf("Empty\n");
+ else
+ printf("Rear: %d\n",
+ rear->data);
+}</textarea>
+ </div>
+ <div class="editor-col active">
+ <div class="editor-col-label">display()</div>
+ <textarea class="code-editor" id="ed-ds" spellcheck="false">// Time: O(n) Space: O(1)
+void display() {
+ struct node *temp = front;
+ if (temp == NULL) {
+ printf("Deque is empty\n");
+ return;
+ }
+ printf("Deque: ");
+ while (temp != NULL) {
+ printf("%d ", temp->data);
+ temp = temp->next;
+ }
+ printf("\n");
+}</textarea>
+ </div>
+ </div>
+ <div class="error-bar" id="error-bar"></div>
+ <div class="success-bar" id="success-bar"></div>
+</div>
+
+<script>
+const SPD = 600;
+let deque=[], idCtr=1, ops=0, busy=false, travTimer=null, opHistory=[];
+
+const mkAddr = id => '0x'+(0x1000+id*0x18).toString(16).toUpperCase();
+const isEmpty = () => deque.length === 0;
+const size = () => deque.length;
+
+let frontenqueue = x => deque.unshift({id:idCtr, data:x, addr:mkAddr(idCtr++)});
+let rearenqueue = x => deque.push({id:idCtr, data:x, addr:mkAddr(idCtr++)});
+let frontdequeue = () => isEmpty() ? null : deque.shift();
+let reardequeue = () => isEmpty() ? null : deque.pop();
+let peekFront = () => isEmpty() ? null : deque[0];
+let peekRear = () => isEmpty() ? null : deque[deque.length-1];
+
+function parseFrontEnqueue(c){
+ var ra=/rear\s*->\s*next\s*=\s*newnode/.test(c)&&/rear\s*=\s*newnode/.test(c);
+ if(ra)return{fn:x=>deque.push({id:idCtr,data:x,addr:mkAddr(idCtr++)}),animDir:'rear',complexity:'O(1)'};
+ return{fn:x=>deque.unshift({id:idCtr,data:x,addr:mkAddr(idCtr++)}),animDir:'front',complexity:'O(1)'};
+}
+function parseRearEnqueue(c){
+ var fp=/newnode\s*->\s*next\s*=\s*front/.test(c)&&/front\s*=\s*newnode/.test(c);
+ var hw=/while\s*\(/.test(c);
+ if(fp)return{fn:x=>deque.unshift({id:idCtr,data:x,addr:mkAddr(idCtr++)}),animDir:'front',complexity:hw?'O(n)':'O(1)'};
+ return{fn:x=>deque.push({id:idCtr,data:x,addr:mkAddr(idCtr++)}),animDir:'rear',complexity:hw?'O(n)':'O(1)'};
+}
+function parseFrontDequeue(c){
+ var b=c,si=c.search(/\/\/\s*reardequeue|void\s+reardequeue/i);if(si>-1)b=c.slice(0,si);
+ var rr=/rear\s*=\s*temp/.test(b)&&!/front\s*=\s*front\s*->\s*next/.test(b);
+ var hw=/while\s*\(/.test(b);
+ if(rr)return{fn:()=>isEmpty()?null:deque.pop(),complexity:hw?'O(n)':'O(1)'};
+ return{fn:()=>isEmpty()?null:deque.shift(),complexity:hw?'O(n)':'O(1)'};
+}
+function parseRearDequeue(c){
+ var b=c,si=c.search(/\/\/\s*reardequeue|void\s+reardequeue/i);if(si>-1)b=c.slice(si);
+ var rf=/front\s*=\s*front\s*->\s*next/.test(b)&&!/rear\s*=\s*temp/.test(b);
+ var hw=/while\s*\(/.test(b);
+ if(rf)return{fn:()=>isEmpty()?null:deque.shift(),complexity:hw?'O(n)':'O(1)'};
+ return{fn:()=>isEmpty()?null:deque.pop(),complexity:hw?'O(n)':'O(1)'};
+}
+function updateChip(id,cx){
+ var c=document.getElementById(id);if(!c)return;
+ c.textContent=cx;c.className='cx-chip '+(cx==='O(1)'?'chip-o1':'chip-on');
+}
+function applyCode(){
+ var eb=document.getElementById('error-bar'),sb=document.getElementById('success-bar'),btn=document.getElementById('apply-btn');
+ eb.classList.remove('show');eb.textContent='';sb.classList.remove('show');sb.textContent='';
+ var ids=['ed-fe','ed-re','ed-fd','ed-pkf','ed-pkr','ed-ds'];
+ for(var i=0;i<ids.length;i++){
+ var code=document.getElementById(ids[i]).value;
+ var o=(code.match(/\{/g)||[]).length,cl=(code.match(/\}/g)||[]).length;
+ if(o!==cl){eb.textContent='Unbalanced braces in '+ids[i]+' ('+o+' { vs '+cl+' })';eb.classList.add('show');return;}
+ }
+ try{
+ var fe=document.getElementById('ed-fe').value,re=document.getElementById('ed-re').value,fd=document.getElementById('ed-fd').value;
+ var feR=parseFrontEnqueue(fe),reR=parseRearEnqueue(re),fdR=parseFrontDequeue(fd),rdR=parseRearDequeue(fd);
+ frontenqueue=feR.fn;rearenqueue=reR.fn;frontdequeue=fdR.fn;reardequeue=rdR.fn;
+ window._feDir=feR.animDir;window._reDir=reR.animDir;
+ updateChip('chip-fe-t',feR.complexity);updateChip('chip-re-t',reR.complexity);
+ updateChip('chip-fd-t',fdR.complexity);updateChip('chip-rd-t',rdR.complexity);
+ sb.textContent='Applied — logic updated and live.';sb.classList.add('show');
+ btn.classList.add('success');
+ setTimeout(()=>{sb.classList.remove('show');btn.classList.remove('success');},2000);
+ }catch(e){eb.textContent='Parse error: '+e.message;eb.classList.add('show');}
+}
+function switchGrp(grp,btn){
+ document.querySelectorAll('.fn-tab').forEach(t=>t.classList.remove('active'));
+ btn.classList.add('active');
+ document.getElementById('grp-main').style.display=grp==='main'?'grid':'none';
+ document.getElementById('grp-util').style.display=grp==='util'?'grid':'none';
+}
+
+const NW=110, NH=64, GAP_Y=28;
+const MIN_GAP=32, MAX_GAP=80;
+let GAP_X=52;
+const svg = d3.select('#d3-svg');
+const defs = svg.append('defs');
+
+function mkGrad(id,c1,c2){
+ var g=defs.append('linearGradient').attr('id',id).attr('x1','0%').attr('y1','0%').attr('x2','100%').attr('y2','100%');
+ g.append('stop').attr('offset','0%').attr('stop-color',c1);
+ g.append('stop').attr('offset','100%').attr('stop-color',c2);
+}
+mkGrad('grad-front','#C96868','#a04040');
+mkGrad('grad-rear','#7EACB5','#4d8a95');
+mkGrad('grad-mid','#d4956b','#b06840');
+mkGrad('grad-solo','#d4956b','#c97050');
+
+function mkMarker(id,col){
+ defs.append('marker').attr('id',id).attr('viewBox','0 0 10 10').attr('refX',8).attr('refY',5)
+ .attr('markerWidth',5).attr('markerHeight',5).attr('orient','auto-start-reverse')
+ .append('path').attr('d','M2,1 L8,5 L2,9').attr('fill','none').attr('stroke',col)
+ .attr('stroke-width',1.8).attr('stroke-linecap','round').attr('stroke-linejoin','round');
+}
+mkMarker('m-f','#C96868'); mkMarker('m-g','#7EACB5');
+mkMarker('m-x','#c4a898'); mkMarker('m-m','#d4956b');
+mkMarker('m-down','#d4956b'); mkMarker('m-up','#d4956b');
+
+var rootG = svg.append('g').attr('transform','translate(0,52)');
+var NULL_W=46, NULL_H=28;
+
+function getCanvasInnerWidth(){
+ var el = document.getElementById('canvas-area');
+ return el ? el.clientWidth : 500;
+}
+
+function nodesPerRow(){
+ var avail = getCanvasInnerWidth();
+ return Math.max(1, Math.floor(avail / (NW + 48)));
+}
+
+function computeGap(npr){
+ return 48;
+}
+
+function snakePos(i, npr){
+ var row = Math.floor(i / npr);
+ var col = i % npr;
+ var rtl = (row % 2 === 1);
+ var cx = rtl ? (npr - 1 - col) * (NW + GAP_X) : col * (NW + GAP_X);
+ var cy = row * (NH + GAP_Y);
+ return {x: cx, y: cy};
+}
+
+function nodeGrad(i){
+ if(deque.length===1) return 'url(#grad-solo)';
+ if(i===0) return 'url(#grad-front)';
+ if(i===deque.length-1) return 'url(#grad-rear)';
+ return 'url(#grad-mid)';
+}
+function nodeStroke(i){
+ if(deque.length===1) return '#d4956b';
+ if(i===0) return '#C96868';
+ if(i===deque.length-1) return '#7EACB5';
+ return '#d4956b';
+}
+
+function svgDims(){
+ var n = deque.length;
+ var npr = nodesPerRow();
+ if(n===0) return {w: 300, h: 160};
+ var rows = Math.ceil(n / npr);
+ var lastRowNodes = n % npr === 0 ? npr : n % npr;
+ var lastRow = rows - 1;
+ var lastRtl = (lastRow % 2 === 1);
+ var nullRow, nullX;
+ if(lastRowNodes < npr){
+ var nextCol = lastRowNodes;
+ var nullCx = lastRtl ? (npr - 1 - nextCol) * (NW + GAP_X) : nextCol * (NW + GAP_X);
+ nullRow = lastRow;
+ nullX = nullCx;
+ } else {
+ nullRow = rows;
+ nullX = (rows % 2 === 1) ? (npr-1)*(NW+GAP_X) : 0;
+ rows++;
+ }
+ var totalH = rows * (NH + GAP_Y) + 70;
+ var totalW = npr <= 1 ? NW : npr * NW + (npr - 1) * GAP_X;
+ return {w: totalW, h: totalH, nullX, nullY: nullRow*(NH+GAP_Y) + NH/2 - NULL_H/2};
+}
+
+function render(opts){
+ opts = opts||{};
+ var exitF = opts.exitF||false, exitR = opts.exitR||false;
+
+ var npr = nodesPerRow();
+ GAP_X = computeGap(npr);
+ var dims = svgDims();
+ var area = document.getElementById('canvas-area');
+ var areaH = area ? area.clientHeight : 400;
+
+ var contentW = dims.w;
+ svg.attr('width', contentW)
+ .attr('height', Math.max(dims.h + 32, areaH))
+ .style('width', contentW + 'px')
+ .style('flex-shrink', '0');
+ rootG.attr('transform', 'translate(0,52)');
+
+ rootG.selectAll('.ptrlbl,.ptrln').remove();
+ if(!isEmpty()){
+ var p0 = snakePos(0, npr);
+ var plast= snakePos(deque.length-1, npr);
+ var solo = deque.length===1;
+
+ rootG.append('text').attr('class','ptrlbl')
+ .attr('x', p0.x + NW/2 + (solo ? -22 : 0))
+ .attr('y', p0.y - 30)
+ .attr('text-anchor','middle').attr('font-family','Fira Code,monospace')
+ .attr('font-size',14).attr('font-weight',600).attr('fill','#C96868')
+ .text('front *');
+ rootG.append('line').attr('class','ptrln')
+ .attr('x1', p0.x + NW/2 + (solo ? -22 : 0)).attr('y1', p0.y - 20)
+ .attr('x2', p0.x + NW/2 + (solo ? -22 : 0)).attr('y2', p0.y + 1)
+ .attr('stroke','#C96868').attr('stroke-width',1.5).attr('marker-end','url(#m-f)');
+
+ rootG.append('text').attr('class','ptrlbl')
+ .attr('x', plast.x + NW/2 + (solo ? 22 : 0))
+ .attr('y', plast.y + NH + 48)
+ .attr('text-anchor','middle').attr('font-family','Fira Code,monospace')
+ .attr('font-size',14).attr('font-weight',600).attr('fill','#7EACB5')
+ .text('rear *');
+ rootG.append('line').attr('class','ptrln')
+ .attr('x1', plast.x + NW/2 + (solo ? 22 : 0)).attr('y1', plast.y + NH + 28)
+ .attr('x2', plast.x + NW/2 + (solo ? 22 : 0)).attr('y2', plast.y + NH + 38)
+ .attr('stroke','#7EACB5').attr('stroke-width',1.5).attr('marker-end','url(#m-g)');
+ }
+
+ rootG.selectAll('.lnk,.lnk-n').remove();
+ deque.forEach((_, i) => {
+ if(i >= deque.length - 1) return;
+ var p1 = snakePos(i, npr);
+ var p2 = snakePos(i+1, npr);
+ var sameRow = (p1.y === p2.y);
+
+ if(sameRow){
+ var x1 = p2.x > p1.x ? p1.x + NW : p1.x;
+ var x2 = p2.x > p1.x ? p2.x - 3 : p2.x + NW + 3;
+ rootG.append('line').attr('class','lnk')
+ .attr('x1',x1).attr('y1',p1.y+NH/2)
+ .attr('x2',x2).attr('y2',p2.y+NH/2)
+ .attr('stroke',nodeStroke(i)).attr('stroke-width',1.5)
+ .attr('marker-end','url(#m-m)');
+ } else {
+ var toX = p2.x + NW/2;
+ var midY = p1.y + NH + GAP_Y/2;
+ var path = `M${p1.x+NW/2},${p1.y+NH} L${p1.x+NW/2},${midY} L${toX},${midY} L${toX},${p2.y}`;
+ rootG.append('path').attr('class','lnk')
+ .attr('d', path)
+ .attr('fill','none')
+ .attr('stroke',nodeStroke(i)).attr('stroke-width',1.5)
+ .attr('marker-end','url(#m-m)');
+ }
+ });
+
+ // ── NULL box: only render when deque has nodes ──
+ rootG.selectAll('.null-g').remove();
+ if(!isEmpty()){
+ var ng = rootG.append('g').attr('class','null-g')
+ .attr('transform',`translate(${dims.nullX ?? 20},${dims.nullY ?? NH/2-NULL_H/2})`);
+ ng.append('rect').attr('width',NULL_W).attr('height',NULL_H).attr('rx',5)
+ .attr('fill','#faebd7').attr('stroke','#c4a898').attr('stroke-width',1);
+ ng.append('text').attr('x',NULL_W/2).attr('y',NULL_H/2+4.5)
+ .attr('text-anchor','middle').attr('dominant-baseline','middle')
+ .attr('font-family','Fira Code,monospace').attr('font-size',11).attr('font-weight',600)
+ .attr('fill','#a08070').text('NULL');
+
+ var plast = snakePos(deque.length-1, npr);
+ var nully = (dims.nullY ?? 0) + NULL_H/2;
+ var nullx = (dims.nullX ?? 20);
+ var sameRow2 = Math.abs(plast.y - (dims.nullY ?? 0)) < NH;
+ if(sameRow2){
+ var nx1 = nullx > plast.x ? plast.x + NW : plast.x;
+ var nx2 = nullx > plast.x ? nullx + 3 : nullx + NULL_W + 3;
+ rootG.append('line').attr('class','lnk-n')
+ .attr('x1',nx1).attr('y1',plast.y+NH/2)
+ .attr('x2',nx2).attr('y2',plast.y+NH/2)
+ .attr('stroke','#c4a898').attr('stroke-width',1.2).attr('marker-end','url(#m-x)');
+ } else {
+ var midY2 = plast.y + NH + GAP_Y/2;
+ var nullcx = nullx + NULL_W/2;
+ var path2 = `M${plast.x+NW/2},${plast.y+NH} L${plast.x+NW/2},${midY2} L${nullcx},${midY2} L${nullcx},${dims.nullY ?? 0}`;
+ rootG.append('path').attr('class','lnk-n')
+ .attr('d',path2).attr('fill','none')
+ .attr('stroke','#c4a898').attr('stroke-width',1.2)
+ .attr('marker-end','url(#m-x)');
+ }
+ }
+
+ var nodes = rootG.selectAll('.dnode').data(deque, d => d.id);
+
+ nodes.exit().transition().duration(260).attr('opacity',0)
+ .attr('transform', function(d,i,arr){
+ var cx = +d3.select(arr[i]).attr('data-x') || 0;
+ var cy = +d3.select(arr[i]).attr('data-y') || 0;
+ return `translate(${cx + (exitF ? -90 : 90)},${cy})`;
+ }).remove();
+
+ var en = nodes.enter().append('g').attr('class','dnode').attr('opacity',0)
+ .attr('transform', (d,i) => {
+ var p = snakePos(i, npr);
+ return `translate(${p.x},${p.y})`;
+ })
+ .attr('data-x', (d,i) => snakePos(i,npr).x)
+ .attr('data-y', (d,i) => snakePos(i,npr).y);
+
+ en.append('rect').attr('class','node-bg').attr('width',NW).attr('height',NH).attr('rx',8)
+ .attr('fill',(d,i)=>nodeGrad(i)).attr('opacity',0.10);
+ en.append('rect').attr('class','node-border').attr('width',NW).attr('height',NH).attr('rx',8)
+ .attr('fill','#fffaf4').attr('fill-opacity',0.92)
+ .attr('stroke',(d,i)=>nodeStroke(i)).attr('stroke-width',2);
+ en.append('line').attr('x1',NW*0.58).attr('y1',0).attr('x2',NW*0.58).attr('y2',NH)
+ .attr('stroke','rgba(0,0,0,0.04)').attr('stroke-width',1);
+ en.append('line').attr('x1',0).attr('y1',20).attr('x2',NW).attr('y2',20)
+ .attr('stroke','rgba(0,0,0,0.04)').attr('stroke-width',1);
+ en.append('text').attr('x',NW*0.29).attr('y',14).attr('text-anchor','middle')
+ .attr('font-family','Fira Code,monospace').attr('font-size',12).attr('fill','#a08080').text('data');
+ en.append('text').attr('x',NW*0.79).attr('y',14).attr('text-anchor','middle')
+ .attr('font-family','Fira Code,monospace').attr('font-size',12).attr('fill','#a08080').text('next');
+ en.append('text').attr('class','nval').attr('x',NW*0.29).attr('y',NH/2+12)
+ .attr('text-anchor','middle').attr('font-family','Outfit,sans-serif')
+ .attr('font-size',22).attr('font-weight',800)
+ .attr('fill',(d,i)=>nodeStroke(i)).text(d=>d.data);
+ en.append('text').attr('class','nnxt').attr('x',NW*0.79).attr('y',NH/2+8)
+ .attr('text-anchor','middle').attr('font-family','Fira Code,monospace')
+ .attr('font-size',10).attr('fill','#8a6a5a')
+ .text((d,i)=>deque[i+1]?deque[i+1].addr:'NULL');
+ en.append('text').attr('class','naddr').attr('x',NW/2).attr('y',NH+16)
+ .attr('text-anchor','middle').attr('font-family','Fira Code,monospace')
+ .attr('font-size',10).attr('fill','#a08080').text(d=>d.addr);
+ en.append('line').attr('class','node-glow')
+ .attr('x1',10).attr('y1',1).attr('x2',NW-10).attr('y2',1)
+ .attr('stroke-linecap','round').attr('stroke-width',2.5)
+ .attr('stroke',(d,i)=>nodeStroke(i)).attr('opacity',0.9);
+
+ en.transition().duration(360).attr('opacity',1)
+ .attr('transform',(d,i)=>{var p=snakePos(i,npr);return `translate(${p.x},${p.y})`;})
+ .each(function(d,i){
+ var p=snakePos(i,npr);
+ d3.select(this).attr('data-x',p.x).attr('data-y',p.y);
+ });
+
+ var up = nodes.merge(en);
+ up.transition().duration(300).attr('opacity',1)
+ .attr('transform',(d,i)=>{var p=snakePos(i,npr);return `translate(${p.x},${p.y})`;})
+ .each(function(d,i){
+ var p=snakePos(i,npr);
+ d3.select(this).attr('data-x',p.x).attr('data-y',p.y);
+ });
+ up.each(function(d,i){
+ var g = d3.select(this);
+ g.select('.node-bg').transition().duration(300).attr('fill',nodeGrad(i));
+ g.select('.node-border').transition().duration(300).attr('stroke',nodeStroke(i));
+ g.select('.node-glow').transition().duration(300).attr('stroke',nodeStroke(i));
+ g.select('.nval').transition().duration(300).attr('fill',nodeStroke(i));
+ g.select('.nnxt').text(deque[i+1]?deque[i+1].addr:'NULL');
+ });
+
+ document.getElementById('empty-hint').style.display = isEmpty() ? 'flex' : 'none';
+ updateStats();
+}
+
+function updateStats(){
+ document.getElementById('s-size').textContent = size();
+ document.getElementById('s-front').textContent = isEmpty() ? 'NULL' : deque[0].addr;
+ document.getElementById('s-rear').textContent = isEmpty() ? 'NULL' : deque[deque.length-1].addr;
+ document.getElementById('s-empty').textContent = isEmpty() ? 'true' : 'false';
+ document.getElementById('s-ops').textContent = ops;
+}
+function hidePeek(){ document.getElementById('peek-result').classList.remove('show'); }
+
+function doFrontEnqueue(){
+ if(busy) return;
+ var v = parseInt(document.getElementById('val-front').value)||0;
+ opHistory.push({type:'fe',val:v}); frontenqueue(v); ops++;
+ render({}); hidePeek();
+}
+function doRearEnqueue(){
+ if(busy) return;
+ var v = parseInt(document.getElementById('val-rear').value)||0;
+ opHistory.push({type:'re',val:v}); rearenqueue(v); ops++;
+ render({}); hidePeek();
+}
+function doFrontDequeue(){
+ if(busy||isEmpty()) return; busy=true;
+ opHistory.push({type:'fd'}); render({exitF:true}); hidePeek();
+ setTimeout(()=>{ frontdequeue(); ops++; render({}); busy=false; }, SPD*0.55);
+}
+function doRearDequeue(){
+ if(busy||isEmpty()) return; busy=true;
+ opHistory.push({type:'rd'}); render({exitR:true}); hidePeek();
+ setTimeout(()=>{ reardequeue(); ops++; render({}); busy=false; }, SPD*0.55);
+}
+function doPeek(end){
+ if(isEmpty()) return;
+ var node = end==='front' ? peekFront() : peekRear();
+ opHistory.push({type: end==='front'?'pkf':'pkr'}); ops++;
+ document.getElementById('pr-fn').textContent = (end==='front'?'peekfront':'peekrear')+'()';
+ document.getElementById('pr-val').textContent = node.data;
+ document.getElementById('peek-result').classList.add('show');
+ updateStats();
+}
+function doReset(){
+ if(busy) return; if(travTimer) clearTimeout(travTimer);
+ deque=[]; ops=0; idCtr=1; opHistory=[];
+ rootG.selectAll('.dnode,.lnk,.lnk-n,.null-g,.ptrlbl,.ptrln').remove();
+ render({}); hidePeek();
+}
+function setDemoBtn(r){
+ var b=document.getElementById('demo-btn');
+ b.textContent = r ? 'Replaying\u2026' : '\u25b6 Replay';
+ b.disabled = r;
+}
+function doDemo(){
+ if(busy||opHistory.length===0) return;
+ var history = opHistory.slice(); setDemoBtn(true);
+ if(travTimer) clearTimeout(travTimer);
+ deque=[]; ops=0; idCtr=1;
+ rootG.selectAll('.dnode,.lnk,.lnk-n,.null-g,.ptrlbl,.ptrln').remove();
+ render({}); hidePeek();
+
+ var delay = ms => new Promise(r=>setTimeout(r,ms));
+ var dFE = v => { frontenqueue(v); ops++; render({}); hidePeek(); };
+ var dRE = v => { rearenqueue(v); ops++; render({}); hidePeek(); };
+ var dFD = () => { if(isEmpty()) return delay(0); render({exitF:true}); hidePeek(); return delay(SPD*0.55).then(()=>{ frontdequeue(); ops++; render({}); }); };
+ var dRD = () => { if(isEmpty()) return delay(0); render({exitR:true}); hidePeek(); return delay(SPD*0.55).then(()=>{ reardequeue(); ops++; render({}); }); };
+ var dPK = end => {
+ if(isEmpty()) return;
+ var node = end==='front'?peekFront():peekRear(); ops++;
+ document.getElementById('pr-fn').textContent = (end==='front'?'peekfront':'peekrear')+'()';
+ document.getElementById('pr-val').textContent = node.data;
+ document.getElementById('peek-result').classList.add('show');
+ updateStats();
+ };
+
+ var chain = Promise.resolve();
+ history.forEach(op => {
+ chain = chain.then(() => {
+ if(op.type==='fe'){ dFE(op.val); return delay(SPD); }
+ if(op.type==='re'){ dRE(op.val); return delay(SPD); }
+ if(op.type==='fd') return dFD().then(()=>delay(SPD));
+ if(op.type==='rd') return dRD().then(()=>delay(SPD));
+ if(op.type==='pkf'){ dPK('front'); return delay(SPD); }
+ if(op.type==='pkr'){ dPK('rear'); return delay(SPD); }
+ return delay(SPD);
+ });
+ });
+ chain.then(()=>{ opHistory=history; setDemoBtn(false); });
+}
+
+document.querySelectorAll('.code-editor').forEach(ta=>{
+ ta.addEventListener('keydown', e=>{
+ if(e.key==='Tab'){
+ e.preventDefault();
+ var s=ta.selectionStart;
+ ta.value=ta.value.substring(0,s)+' '+ta.value.substring(ta.selectionEnd);
+ ta.selectionStart=ta.selectionEnd=s+4;
+ }
+ });
+});
+
+window.addEventListener('resize',()=>render({}));
+render({});
+</script>
+</body>
+</html>
